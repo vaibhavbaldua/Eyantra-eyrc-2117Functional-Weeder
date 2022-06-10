@@ -1,4 +1,4 @@
-defmodule Task4CClientRobotB.PhoenixSocketClient do
+defmodule Task4CClientRobotA.PhoenixSocketClient do
 
   alias PhoenixClient.{Socket, Channel, Message}
 
