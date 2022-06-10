@@ -217,11 +217,10 @@ defmodule Alphabot do
 
 
 
-  @doc """
-     Checks the presence of the objects in front of ir sensors.
-     Returns binary values in a list
-  """
-  def proximity_check do
+
+     #Checks the presence of the objects in front of ir sensors.
+     #Returns binary values in a list
+  defp proximity_check do
     ir_ref = Enum.map(@ir_pins, fn {_atom, pin_no} -> GPIO.open(pin_no, :input, pull_mode: :pullup) end)
     ir_values = Enum.map(ir_ref,fn {_, ref_no} -> GPIO.read(ref_no) end)
   end
@@ -233,7 +232,7 @@ defmodule Alphabot do
       `robot` -> Map containing Alphabot's Position
       `a`     -> Angular Postion for servo a which rotates the Base of the Arm ( Rotation Around X axis )
       `b`     -> Angular Postion for servo a which moves the Arm up or down ( Rotation around Y Axis )
-      `c`     -> Angular Postion for servo a which rotates the stopper of the Arm ( Rotation around Z Axis )
+      `c`     -> Angular Postion for servo a which rotates the stopper of the Arm to avoid seeds from falling ( Rotation around Z Axis )
   """
   def servos(robot,a,b,c) do
     lift_servo(robot,b,500)
@@ -242,6 +241,8 @@ defmodule Alphabot do
   end
 
 
+
+    #Function to rotate servo motor B to move the arm up or down
 
   defp lift_servo(robot,angle,time) do
     stop_signal(robot)
@@ -260,6 +261,8 @@ defmodule Alphabot do
   end
 
 
+    ##Used to rotate the Servo Motor C which is used to grip the plant stalks as well as block the seed objects.
+
   defp grip_servo(robot,angle) do
     stop_signal(robot)
     high_thresh = 140
@@ -274,6 +277,10 @@ defmodule Alphabot do
     Process.sleep(0)
   end
 
+
+    #Rotates the Base Servo motor.
+
+
   defp base_servo(robot,angle) do
     stop_signal robot
     val = trunc(((2.5 + 10.0 * angle / 180) / 100 ) * 255)
@@ -282,15 +289,10 @@ defmodule Alphabot do
     Process.sleep(500)
   end
 
-
+  @doc """
+     Turns the Alphabot in the direction given as argument `side`.
   """
-  functions for turning the robot
-  turn -> the funtion to be invoked
-  take_left, take_right, left and right are supporting functions
-  """
-
-
-  def turn(robot,action) do
+  def turn(robot,side) do
     pid = Process.whereis(:starter)
     if pid != nil do
       send(:starter,:die)
@@ -305,7 +307,7 @@ defmodule Alphabot do
         status
     end
     adjust_robot(robot,status)
-    if action == :right do
+    if side == :right do
       take_right(robot,150)
     else
       take_left(robot,150)
@@ -316,6 +318,9 @@ defmodule Alphabot do
         :ok
     end
   end
+
+
+     ##Turns the alphabot to the left side.
 
   defp take_left(robot,n) do
     stop_signal(robot)
@@ -335,6 +340,10 @@ defmodule Alphabot do
       take_left(robot,n - 10)
     end
   end
+
+
+     ##Turns the Alphabot to the right side.
+
 
   defp take_right(robot,n) do
     stop_signal(robot)
@@ -358,7 +367,10 @@ defmodule Alphabot do
   end
 
 
-  def left(direction,duty,time) do
+
+     ###Turns the robot to left by providing duty cycle to the desired motors
+
+  defp left(direction,duty,time) do
     if direction == :forward do
       motor_ref = Enum.map(@motor_pins, fn {_atom, pin_no} -> GPIO.open(pin_no, :output) end)
       motor_action(motor_ref, @left,time)
@@ -373,7 +385,8 @@ defmodule Alphabot do
 
   end
 
-  def right(direction,duty,time) do
+
+  defp right(direction,duty,time) do
     if direction == :forward do
       motor_ref = Enum.map(@motor_pins, fn {_atom, pin_no} -> GPIO.open(pin_no, :output) end)
       motor_action(motor_ref, @right,time)
@@ -387,20 +400,10 @@ defmodule Alphabot do
     end
   end
 
-  """
-  functions for making the robot move back or forward
-  calibrate => to get ir sensor values as binary values
-  recentre => to align the robot on the white line properly
-  forward => helper function to make the robot move forward by giving signal to the motor pins
-  backward => helper function to move the robot backward
-  adjust_robot => function to move the robot ahead of the node so as to facilitate the robot alignment while taking a turn
-  robot_status => function that keeps track whether the robot has taken a turn or not
-  path => function to chcalk out a path for the robot desired by the user
-  """
 
-  #sudo iex -S mix
-  #LineFollower.directives
-  def spawner do
+
+
+  defp spawner do # Spawns the PID Controller Function
     align = calibrate
     align = if align == [0,0,0,0,0] do
       [0,0,1,0,0]
@@ -412,15 +415,16 @@ defmodule Alphabot do
     pid
   end
 
-  def starter do
+  defp starter do
     receive do
       _ -> :ok
     end
   end
 
-
+  @doc """
+     To move the alphabot from current node to to node ahead of it.
+  """
   def move(robot) do
-
     ppid=spawner
     servos(robot,90,30,0)
     bool = if Process.whereis(:starter) != nil do
@@ -442,7 +446,7 @@ defmodule Alphabot do
     end
   end
 
-  def pd_moving(start) do
+  defp pd_moving(start) do
     start = if start == true  do
       for 1..5 do
         spid = self
@@ -474,7 +478,7 @@ defmodule Alphabot do
   end
 
 
-
+## to move the robot in small steps especially while taking turns
   defp steps(robot,direction,duty,time) do
     stop_signal(robot)
     time = if time > 60  do
@@ -496,6 +500,8 @@ defmodule Alphabot do
       steps robot,direction ,duty,(time - 10)
     end
   end
+
+  ## PID controller function for the alphabot to keep the alphabot on track using the five channel line tracker sensor
 
   defp pid_control(last_p_error,last_location) do
     receive do
@@ -531,7 +537,7 @@ defmodule Alphabot do
     end
   end
 
-
+## Recentres the robot back on track while moving in steps.
   def recentre(direction) do
     alignment = calibrate
 
@@ -562,8 +568,8 @@ defmodule Alphabot do
         end
     end
   end
-
-  def adjust_robot(robot,status) do
+## Helps to adjust the robot before turning the Alphabot
+  defp adjust_robot(robot,status) do
     if status == :turned do
       for i <- 1..8 do
         stop_signal(robot)
@@ -583,7 +589,12 @@ defmodule Alphabot do
     end
   end
 
-
+  @doc """
+     Calibriton of Line tracker sensor Values by assigning them binary values to depict the color of surface underneath in it using a threshold value
+     return either 1 or 0
+     1 -> White line
+     0 -> Black Line
+  """
   def calibrate do
 
       [IR_ext_left: ir_1,IR_left: ir_2,IR_centre: ir_3,IR_right: ir_4,IR_ext_right: ir_5]=give_path_values()
@@ -623,25 +634,34 @@ defmodule Alphabot do
     values=[ir_1,ir_2,ir_3,ir_4,ir_5]
   end
 
-  def forward(duties,time) do
+  ## Move the alphabot forward with duty cycles given to the motors in the list `duties`.
+  defp forward(duties,time) do
     motor_ref = Enum.map(@motor_pins, fn {_atom, pin_no} -> GPIO.open(pin_no, :output) end)
     motor_action(motor_ref, @forward,time)
     Enum.each(@pwm_pins, fn {pin_no, duty_num} -> Pigpiox.Pwm.gpio_pwm(pin_no,Enum.at(duties,duty_num)) end)
   end
 
-  def backward(duties,time) do
+## moves the alphabot backward with duty cycles given to the motors in the list `duties`
+  defp backward(duties,time) do
     motor_ref = Enum.map(@motor_pins, fn {_atom, pin_no} -> GPIO.open(pin_no, :output) end)
     motor_action(motor_ref, @backward,time)
     Enum.each(@pwm_pins, fn {pin_no, duty_num} -> Pigpiox.Pwm.gpio_pwm(pin_no,Enum.at(duties,duty_num)) end)
   end
 
-
+  @doc """
+     Stops the robot by assigning 0 duty cycle to both tha motors
+  """
   def stop do
     motor_ref = Enum.map(@motor_pins, fn {_atom, pin_no} -> GPIO.open(pin_no, :output) end)
     motor_action(motor_ref,@stop,1)
   end
 
-  def robot_status(status) do
+
+  # This function keeps track of Robot's Position Whether on the node
+  # When a robot Takes a turn It does not remain on the node
+  # When a robot just takes a step ahead then It stops at the node
+
+  defp robot_status(status) do
     receive do
       {:give_status,:PID,pid} ->
         if status == :turned do
@@ -677,13 +697,16 @@ defmodule Alphabot do
   functions to obtain the values from the five channel ir sensor module for white line tracking
   """
 
-  def give_path_values do
+  defp give_path_values do
     sensor_ref = Enum.map(@sensor_pins, fn {atom, pin_no} -> configure_sensor({atom, pin_no}) end)
     sensor_ref = Enum.map(sensor_ref, fn{_atom, ref_id} -> ref_id end)
     sensor_ref = Enum.zip(@ref_atoms, sensor_ref)
     values=get_lfa_readings([1,2,3,4,5], sensor_ref)
     values
   end
+  """
+  Helper function for
+  """
 
   defp configure_sensor({atom, pin_no}) do
     if (atom == :dataout) do
@@ -709,9 +732,7 @@ defmodule Alphabot do
     values
   end
 
-  @doc """
-  Supporting function for test_wlf_sensors
-  """
+
   defp analog_read(sens_num, sensor_ref, {_, sensor_atom_num}) do
 
     GPIO.write(sensor_ref[:cs], 0)
@@ -722,9 +743,7 @@ defmodule Alphabot do
                                         end)[sensor_atom]
   end
 
-  @doc """
-  Supporting function for test_wlf_sensors
-  """
+
   defp read_data(n, acc, sens_num, sensor_ref,sensor_atom_num) do
     if (n < 4) do
 
@@ -742,17 +761,12 @@ defmodule Alphabot do
     end
   end
 
-  @doc """
-  Supporting function for test_wlf_sensors used for providing clock pulses
-  """
   defp provide_clock(sensor_ref) do
     GPIO.write(sensor_ref[:clock], 1)
     GPIO.write(sensor_ref[:clock], 0)
   end
 
-  @doc """
-  Supporting function for test_wlf_sensors used for providing clock pulses
-  """
+
   defp clock_signal(acc, n, sensor_ref) do
     GPIO.write(sensor_ref[:clock], 1)
     GPIO.write(sensor_ref[:clock], 0)

@@ -54,19 +54,20 @@ defmodule Task4CClientRobotA do
     place(x, y, facing)
   end
 
-  @doc """
-  Main function to initiate the sequence of tasks to achieve by the Client Robot A,
-  such as connect to the Phoenix server, get the robot A's start and goal locations to be traversed.
-  Call the respective functions from this module and others as needed.
-  You may create extra helper functions as needed.
-  """
 
+  @doc """
+  Gets goal position from the server.
+  """
   def get_goal do
     goal=Task4CClientRobotA.PhoenixSocketClient.get_goal
     goal
   end
 
-  def killer do
+
+  """
+  Kills the functions spawned during the theme run, essential for task completion.
+  """
+  defp killer do
     pid = Process.whereis(:register)
     if pid == nil do
       :ok
@@ -88,15 +89,28 @@ defmodule Task4CClientRobotA do
     end
   end
 
-  def confirm_goal(type,goal) do
+  """
+  Sends a confirmation to server after achieving the goal.
+  """
+
+  defp confirm_goal(type,goal) do
     Task4CClientRobotA.PhoenixSocketClient.confirm_goal(type,goal)
   end
 
-  def get_start do
+  """
+  Gets the start position of the alphabot
+  """
+
+  defp get_start do
     Task4CClientRobotA.PhoenixSocketClient.get_start
   end
 
-  def farming(robot,type) do
+
+  """
+  This function makes the robot to uproot the weed stalk or to drop the seed object depending upon the target type,
+  which the server provides.
+  """
+  defp farming(robot,type) do
     comm(robot,"farming")
     [x,y,face] = [robot.x,robot.y,robot.facing]
     {robot,side} = cond do
@@ -141,13 +155,24 @@ defmodule Task4CClientRobotA do
     robot
   end
 
-  def obs_detect(robot) do
+
+
+  """
+  Detects the presence of obstacle infront of the Alphabot.
+  """
+  defp obs_detect(robot) do
     params = [robot.x,robot.y,robot.facing]
     obs_list =[[2, :a, :east ],[3, :a, :west],[1, :b, :north ], [1, :c, :south],[2, :d, :east ],[3, :d, :west]]
     Enum.member?(obs_list,params)
   end
 
 
+  @doc """
+  Main function to initiate the sequence of tasks to achieve by the Client Robot A,
+  such as connect to the Phoenix server, get the robot A's start and goal locations to be traversed.
+  Call the respective functions from this module and others as needed.
+  You may create extra helper functions as needed.
+  """
   def main do
     Task4CClientRobotA.PhoenixSocketClient.connect_server
     [x,y,facing]=get_start
@@ -155,7 +180,11 @@ defmodule Task4CClientRobotA do
     stop(robot)
   end
 
-  def deposit_stalks(robot) do
+
+  """
+  Slides the Weed collecting box into the dumping Zone.
+  """
+  defp deposit_stalks(robot) do
 
     if robot.x == 3 do
       {robot,side} = cond do
@@ -197,8 +226,7 @@ defmodule Task4CClientRobotA do
 
 
   @doc """
-  Provide GOAL positions to the robot as given location of [(x1, y1),(x2, y2),..] and plan the path from START to these locations.
-  Make a call to ToyRobot.PhoenixSocketClient.send_robot_status/2 to get the indication of obstacle presence ahead of the robot.
+  This function initiates the traversal of the robot to acheive the tasks assigned by the server.
   """
   def stop(robot) do
     parent=self()
@@ -213,7 +241,12 @@ defmodule Task4CClientRobotA do
     {:ok,robot}
   end
 
-  def watcher(robot) do
+  """
+  This function is intiated when this Robot completes all its tasks and waits for the other robot.
+  This function exits at the end of theme Run.
+  """
+
+  defp watcher(robot) do
     {robot,next_move}=comm(robot,"halting")
     cond do
       next_move == "goal_exchange" or next_move == "escaped" ->
@@ -231,7 +264,10 @@ defmodule Task4CClientRobotA do
   end
 
 
-
+  @doc """
+  This function initiates the robot traversal depending upon its current facing direction
+  and ensures the robot to acheive its every farming task
+  """
   def destination_finder(initial_position) do
     parent=self()
     final_position=helper(initial_position)
@@ -259,15 +295,27 @@ defmodule Task4CClientRobotA do
     end
   end
 
-  def helper(robot) do
+  """
+  Helper function for destination_finder/1 function
+  decides the direction of traversal for the robot depending upon the facing direction of the
+  alphabot and its goal location.
+  """
+
+  defp helper(robot) do
     parent=self()
     [goal_x,goal_y,goal_type] = get_goal
     cond do
-      robot.facing==:east and goal_x > robot.x or robot.facing==:west and goal_x < robot.x or robot.facing==:north and goal_y <= robot.y or robot.facing==:south and goal_y >= robot.y ->
+      robot.facing==:east and goal_x > robot.x or
+      robot.facing==:west and goal_x < robot.x or
+      robot.facing==:north and goal_y <= robot.y or
+      robot.facing==:south and goal_y >= robot.y ->
         robot=translate_x(robot)
         robot=translate_y(robot)
         robot
-      robot.facing==:east and goal_x <= robot.x or robot.facing==:west and goal_x >= robot.x or robot.facing==:north and goal_y > robot.y or robot.facing==:south and goal_y < robot.y ->
+      robot.facing==:east and goal_x <= robot.x or
+      robot.facing==:west and goal_x >= robot.x or
+      robot.facing==:north and goal_y > robot.y or
+      robot.facing==:south and goal_y < robot.y ->
         robot=translate_y(robot)
         robot=translate_x(robot)
         robot
@@ -275,8 +323,10 @@ defmodule Task4CClientRobotA do
   end
 
 
-
-  def spawner(robot) do
+   """
+   Sends the Alphabot's info to the server.
+   """
+  defp spawner(robot) do
     parent=self()
     Task4CClientRobotA.PhoenixSocketClient.report_robot_status(robot)
     obs_bool = obs_detect(robot)
@@ -288,7 +338,11 @@ defmodule Task4CClientRobotA do
 
 
 
-
+  @doc """
+  Sends Alphabot's location as well as its next `move` to the server.
+  It receives directive to "proceed" with the `move` action or to take an alternate path or to stop
+  to avoid collision with another robot.
+  """
   def comm(robot,action) do
     next_move=Task4CClientRobotA.PhoenixSocketClient.report_next_move(robot,action)
     cond do
@@ -309,7 +363,9 @@ defmodule Task4CClientRobotA do
 
 
 
-
+  @doc """
+  Makes the robot move in the along the Y axis on the arena.
+  """
   def translate_y(robot) do
     pid=self()
     [goal_x,goal_y,goal_type] = get_goal
@@ -350,6 +406,10 @@ defmodule Task4CClientRobotA do
     end
   end
 
+  @doc """
+  Makes the robot move along the x - axis on the arena.
+  """
+
   def translate_x(robot) do
     pid=self()
     [goal_x,goal_y,goal_type] = get_goal
@@ -389,7 +449,10 @@ defmodule Task4CClientRobotA do
     end
   end
 
-  def register(list) do
+  """
+  This function logs the turn taken by the robot while avoiding an obstacle in the from of List.
+  """
+  defp register(list) do
     list=receive do
       {:check,{robot,turn}} ->
         {robot,turn}
@@ -411,7 +474,10 @@ defmodule Task4CClientRobotA do
     register(list)
   end
 
-  def reg_check(robot,turn) do
+  """
+  Checks the turn taken by the robot to avoid the obstacle.
+  """
+  defp reg_check(robot,turn) do
 
     send(:register,{:check,{robot,turn}})
     bool=receive do
@@ -419,7 +485,12 @@ defmodule Task4CClientRobotA do
     end
     bool
   end
-  def spawn_checker(robot,turn) do
+
+  """
+  this Function spawns the function reg_check/2
+  """
+
+  defp spawn_checker(robot,turn) do
     parent=self()
     pid=spawn_link(fn -> result=reg_check(robot,turn)
       send(parent,{:result,result}) end)
@@ -431,16 +502,19 @@ defmodule Task4CClientRobotA do
     result
   end
 
-  #@spec move_adjacent(%CLI.Position{:facing => any, optional(any) => any}, any, any) :: any
+  @doc """
+  Obstacle avoidance algorithm
+  """
   def move_adjacent(robot, axis) do
     comm(robot,"turning")
     left_robot=left(robot)
     left_bool=spawner(left_robot)
     cond do
 
-      axis=='y' and robot.facing== :north and robot.x == 6 and left_bool==false or axis=='y' and robot.facing==:south and robot.x==1 and left_bool==false or
-      axis=='x' and robot.facing== :east and @robot_map_y_atom_to_num[robot.y] == 1 and left_bool==false or axis=='x' and robot.facing== :west and
-      @robot_map_y_atom_to_num[robot.y] == 6 and left_bool==false ->
+      axis=='y' and robot.facing== :north and robot.x == 6 and left_bool==false or
+      axis=='y' and robot.facing==:south and robot.x==1 and left_bool==false or
+      axis=='x' and robot.facing== :east and @robot_map_y_atom_to_num[robot.y] == 1 and left_bool==false or
+      axis=='x' and robot.facing== :west and @robot_map_y_atom_to_num[robot.y] == 6 and left_bool==false ->
 
         {left_robot,msg}=comm(left_robot,"moving")
 
@@ -449,13 +523,17 @@ defmodule Task4CClientRobotA do
         else
           left_robot
         end
-      axis=='y' and robot.facing== :north and robot.x == 6 and left_bool==true or axis=='y' and robot.facing==:south and robot.x==1 and left_bool==true or
+      axis=='y' and robot.facing== :north and robot.x == 6 and left_bool==true or
+       axis=='y' and robot.facing==:south and robot.x==1 and left_bool==true or
       axis=='x' and robot.facing== :east and @robot_map_y_atom_to_num[robot.y] == 1 and left_bool==true or axis=='x' and robot.facing== :west and
       @robot_map_y_atom_to_num[robot.y] == 6 and left_bool==true ->
         comm(left_robot,"turning")
         opposite=left(left_robot)
         doom=spawner(opposite)
-        if doom==true or axis=='y' and robot.x==6 and robot.y==:a or axis=='y' and robot.x==1 and robot.y==:f or axis=='x' and robot.y==:a and robot.x==1 or axis=='x' and robot.y==:f and robot.x==6 do
+        if doom==true or axis=='y' and robot.x==6 and robot.y==:a or
+        axis=='y' and robot.x==1 and robot.y==:f or
+        axis=='x' and robot.y==:a and robot.x==1 or
+        axis=='x' and robot.y==:f and robot.x==6 do
           comm(opposite,"turning")
           robot=right(opposite)
           spawner(robot)
@@ -485,8 +563,8 @@ defmodule Task4CClientRobotA do
             opposite
           end
         end
-      axis=='y' and robot.x < 6 and robot.x > 1 and left_bool==false or axis=='x' and
-      @robot_map_y_atom_to_num[robot.y] > 1 and @robot_map_y_atom_to_num[robot.y] < 6 and left_bool==false ->
+      axis=='y' and robot.x < 6 and robot.x > 1 and left_bool==false
+      or axis=='x' and @robot_map_y_atom_to_num[robot.y] > 1 and @robot_map_y_atom_to_num[robot.y] < 6 and left_bool==false ->
         {left_robot,msg}=comm(left_robot,"moving")
           if msg != "goal_exchange" or msg != "escaped" do
             move(left_robot)
@@ -504,9 +582,10 @@ defmodule Task4CClientRobotA do
         right_robot=right(robot)
         right_bool=spawner(right_robot)
         cond do
-          axis=='y' and robot.facing==:north and robot.x == 1 and right_bool==false or axis=='y' and robot.facing== :south and robot.x == 6 and right_bool==false or
-          axis=='x' and robot.facing==:east and @robot_map_y_atom_to_num[robot.y] == 6 and right_bool==false or axis=='x' and robot.facing== :west and
-          @robot_map_y_atom_to_num[robot.y] == 1 and right_bool==false  ->
+          axis=='y' and robot.facing==:north and robot.x == 1 and right_bool==false or
+          axis=='y' and robot.facing== :south and robot.x == 6 and right_bool==false or
+          axis=='x' and robot.facing==:east and @robot_map_y_atom_to_num[robot.y] == 6 and right_bool==false or
+          axis=='x' and robot.facing== :west and @robot_map_y_atom_to_num[robot.y] == 1 and right_bool==false  ->
 
             {right_robot,msg}=comm(right_robot,"moving")
             if msg != "goal_exchange" or msg != "escaped" do
@@ -626,7 +705,9 @@ defmodule Task4CClientRobotA do
   end
 
 
-
+  @doc """
+  Rotates the robot towards the X coordinate of the goal position.
+  """
   def rotate_robot_x(robot, goal_x) do
     cond do
       goal_x > robot.x and robot.facing == :north -> right(robot)
@@ -636,6 +717,10 @@ defmodule Task4CClientRobotA do
       true -> right(robot)
     end
   end
+
+  @doc """
+  Rotates the robot towards the Y coordinate of the goal location.
+  """
 
   def rotate_robot_y(robot, goal_y) do
     cond do
