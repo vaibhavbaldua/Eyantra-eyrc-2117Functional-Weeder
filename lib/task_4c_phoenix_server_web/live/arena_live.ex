@@ -176,10 +176,9 @@ defmodule Task4CPhoenixServerWeb.ArenaLive do
     """
   end
 
-
-  def all_pos() do
+  ## This function returns all possible node coordinates approachable by the Alphabot.
+  defp all_pos() do
     range = 1..25
-    #IO.inspect(range)
     all_pos=Enum.map(range , fn num ->
 
     [x_const,y_coord]=cond do
@@ -192,15 +191,22 @@ defmodule Task4CPhoenixServerWeb.ArenaLive do
     [(num + 1) - x_const, y_coord]
    end)
    all_pos
-  #IO.inspect(all_pos)
 
   end
 
-  def pos_converter(plant_positions) do
+
+   ## This function returns node coordinates to be visited by the robot by taking the Plant_positions as list of cell numbers
+
+  defp pos_converter(plant_positions) do
     all_pos = all_pos()
     goal_locs = Enum.map(plant_positions, fn num -> Enum.at(all_pos, num - 1 ) end)
     goal_locs
   end
+
+  @doc """
+  This function returns the goal_locations in the from of a list.
+  It parses the "plant_Positions.csv" file provided by E-yantra Team.
+  """
 
   def fetch_locations do
     string=File.read!("Plant_Positions.csv")
@@ -223,7 +229,11 @@ defmodule Task4CPhoenixServerWeb.ArenaLive do
     goal_locs
   end
 
-  def target_identifier(weeding) do
+
+## This function replies the requesting functions with the type of goal location i.e. Weeding Target or Sowing
+##  It takes weeding targets as input. Receives goal location and PID of the process as the message and finds the goal location in the list of Weeding targets
+## If not found then it sends goal type as "sowing" and if found then goal type "weeding"
+  defp target_identifier(weeding) do
     receive do
       {:find_type,goal,pid} ->
         param=Enum.find(weeding, fn x -> x == goal end)
@@ -236,7 +246,11 @@ defmodule Task4CPhoenixServerWeb.ArenaLive do
     target_identifier(weeding)
   end
 
-  def min_turns(robot,goal) do
+
+  ## This function returns the number of min. number of turns to be taken by the alphabot along with a weights added to it
+  ## Since taking turns were difficult for the alphabot thus it was important to find a path with min. number of turns
+  ## to avoid alphabot getting off track
+  defp min_turns(robot,goal) do
     [x,y,face] = robot
     [goal_x,goal_y] = goal
     cond do
@@ -250,6 +264,9 @@ defmodule Task4CPhoenixServerWeb.ArenaLive do
         2.5
     end
   end
+
+  ## This is location sorting algorithm It takes Robot A and B 's starting locations along with the socket params,
+  ## It calculates the min. number of moves required by the Robots to reach the targets thus 
 
   def loc_sorter(robotA,robotB,socket) do
     loc_list = fetch_locations()

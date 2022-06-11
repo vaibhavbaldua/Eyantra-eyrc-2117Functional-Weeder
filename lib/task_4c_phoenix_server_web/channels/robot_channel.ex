@@ -15,7 +15,7 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
 
   @doc """
   Handler function for any Client joining the channel with topic "robot:status".
-  Subscribe to the topic named "robot:update" on the Phoenix Server using Endpoint.
+  Subscribe to the topic named "obs:update" on the Phoenix Server using Endpoint.
   Reply or Acknowledge with socket PID received from the Client.
   """
   def join("robot:status", _params, socket) do
@@ -33,7 +33,7 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
   %{"client" => < "robot_A" or "robot_B" >,  "left" => < left_value >, "bottom" => < bottom_value >, "face" => < face_value > }
 
   These values should be pixel locations for the robot's image to be displayed on the Dashboard
-  corresponding to the various actions of the robot as recevied from the Client.
+  corresponding to the various actions of the robot as received from the Client.
 
   Broadcast the created Map of pixel locations, so that the ArenaLive module can update
   the robot's image and location on the Dashboard as soon as it receives the new data.
@@ -43,15 +43,24 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
 
   If an obstacle is present ahead of the robot, then broadcast the pixel location of the obstacle to be displayed on the Dashboard.
   """
+
+  @doc """
+  Handler function to update goal list on the dashboard
+  It takes Request in the form of a map %{GoalsA: str_listA, GoalsB: str_listB} where str_listA and str_listB
+  are lists containing list of goals for robot A and B respectively left to achieve.
+  """
   def handle_info(%{GoalsA: str_listA, GoalsB: str_listB}, socket) do
-    IO.puts("hooohoohoh")
     socket = assign(socket, :robotA_goals, str_listA )
     socket = assign(socket, :robotB_goals, str_listB )
     {:noreply, socket}
   end
 
 
-
+  @doc """
+  This function extracts the time values at Which Robots A nad B are to stopped or Killed temporarily before resuming
+  to their task.
+  It fetches the values from Robot_handle.csv file Provided by the E-yantra Team
+  """
   def fetch_timestamps(robot) do
     string=File.read!("Robot_handle.csv")
     list=String.split(string, "\n")
@@ -93,6 +102,10 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
     {a,b}
   end
 
+  @doc """
+  This function sends the stopping signals and its duration to the robot clients
+  """
+
   def give_stop_signal(sender,time) do
     {kill_duration_map,ts} = fetch_timestamps(sender)
 
@@ -116,7 +129,10 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
 
 
 
-
+  @doc """
+  This function identifies event from the msg payload
+  There are various events ranging from event_id 0 to event_id 12
+  """
   def event_identifier(msg,socket) do
     %{"event_id" => num ,"sender" => sender, "value" => value, "timer" => time } = msg
     reply = cond do
@@ -168,6 +184,9 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
   end
 
 
+  @doc """
+  Handler function to reply robot clients for various event_ids
+  """
   def handle_in("event_msg", message, socket) do
     message = Map.put(message, "timer", socket.assigns[:timer_tick])
     #Task4CPhoenixServerWeb.Endpoint.broadcast_from(self(), "robot:status", "event_msg", message)
@@ -175,7 +194,12 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
     {:reply, reply, socket}
   end
 
-  def obs_position(bot_x,bot_y,bot_face) do
+
+  """
+  This function returns the obstacle position coordinates in form of pixel values it takes robot location and its
+  facing direction on the arena.
+  """
+  defp obs_position(bot_x,bot_y,bot_face) do
     {obs_x,obs_y}= cond do
       bot_face == "east" ->
         {(bot_x + 0.5 - 1)*150,(bot_y - 1)*150}
@@ -190,10 +214,5 @@ defmodule Task4CPhoenixServerWeb.RobotChannel do
   end
 
 
-
-
-  #########################################
-  ## define callback functions as needed ##
-  #########################################
 
 end

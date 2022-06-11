@@ -4,6 +4,11 @@ defmodule Task4cPhoenixServerWeb.RobotANavigateChannel do
   @robot_map_y_num_to_atom %{1 => :a, 2 => :b, 3 => :c, 4 => :d, 5 => :e, 6 => :f}
 
   @impl true
+
+  @doc """
+  Handler function for any Robot Client A joining the channel with topic "navigate_A:robot".
+  Reply or Acknowledge with socket PID received from the Client.
+  """
   def join("navigate_A:robot", payload, socket) do
     socket = assign(socket, :img_robotA, "RobotA_image_on.png")
     socket = assign(socket, :bottom_robotA, 0)
@@ -15,6 +20,9 @@ defmodule Task4cPhoenixServerWeb.RobotANavigateChannel do
 
   # Channels can be used in a request/response fashion
   # by sending replies to requests from the client
+  @doc """
+  Handler function to messages pushed from Robot Client A with event named "fetch_goal_A"
+  """
   @impl true
   def handle_in("fetch_goal_A", msg, socket) do
     IO.inspect(msg)
@@ -46,6 +54,10 @@ defmodule Task4cPhoenixServerWeb.RobotANavigateChannel do
   # broadcast to everyone in the current topic (robot_goals:lobby).
 
 
+  @doc """
+  Handler function for messages pushed from Robot client A with event name "achieved_goal_A"
+  when the robot visits a goal position successfully.
+  """
   @impl true
   def handle_in("acheived_goal_A", msg, socket) do
     apid=self()
@@ -55,7 +67,10 @@ defmodule Task4cPhoenixServerWeb.RobotANavigateChannel do
   end
 
 
-
+  @doc """
+  handler function for messages pushed from Robot Client A to request clearance for its next move to avoid collision with
+  another robot.
+  """
   @impl true
   def handle_in("next_action_A", payload, socket) do
      %{"client" => "robot_A", "x" => x, "y" => y,
@@ -66,6 +81,10 @@ defmodule Task4cPhoenixServerWeb.RobotANavigateChannel do
   end
 
 
+  @doc """
+  Handler function to handle messages pushed into the channel with event name "start_pos_A"
+  It replies with the starting position for Robot Client A.
+  """
 
   def handle_in("start_pos_A",client,socket) do
     pid=self()
@@ -80,7 +99,12 @@ defmodule Task4cPhoenixServerWeb.RobotANavigateChannel do
     {:reply, {:start_A, start}, socket}
   end
 
-
+  @doc """
+  This function takes arguments `robot` and `action` which robot A's location and its next action which can be "moving"
+  "turning", "Halting"(robot has stopped at a location temporarily while waiting for another robot to clear the route)
+  "farming"( when the robot was uprooting a weed stalk or dropping a seed object ), "moving" (when the robot is about
+  to move to the node ahead)
+  """
   def commA(robot,action) do
     apid= self()
     IO.inspect(robot)

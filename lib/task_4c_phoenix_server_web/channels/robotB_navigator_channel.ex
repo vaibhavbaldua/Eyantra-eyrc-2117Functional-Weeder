@@ -3,6 +3,10 @@ defmodule Task4cPhoenixServerWeb.RobotBNavigateChannel do
   @robot_map_y_atom_to_num %{:a => 1, :b => 2, :c => 3, :d => 4, :e => 5, :f => 6}
   @robot_map_y_num_to_atom %{1 => :a, 2 => :b, 3 => :c, 4 => :d, 5 => :e, 6 => :f}
 
+  @doc """
+  Handler function for any Robot Client B joining the channel with topic "navigate_B:robot".
+  Reply or Acknowledge with socket PID received from the Client.
+  """
   @impl true
   def join("navigate_B:robot", payload, socket) do
     socket = assign(socket, :img_robotB, "RobotB_image_on.png")
@@ -18,6 +22,10 @@ defmodule Task4cPhoenixServerWeb.RobotBNavigateChannel do
 
   # It is also common to receive messages from the client and
   # broadcast to everyone in the current topic (robot_goals:lobby).
+
+  @doc """
+  Handler function to messages pushed from Robot Client B with event named "fetch_goal_B"
+  """
   @impl true
   def handle_in("fetch_goal_B", msg, socket) do
     apid=self()
@@ -30,7 +38,6 @@ defmodule Task4cPhoenixServerWeb.RobotBNavigateChannel do
 
     pid = self()
     current_target_B = if current_target_B != [nil,nil] do
-      #%{"sender" => sender, "goal" => [x,y]}=msg
       [x,y] = current_target_B
       send(:target_identifier,{:find_type,current_target_B,pid})
       string = receive do
@@ -47,7 +54,10 @@ defmodule Task4cPhoenixServerWeb.RobotBNavigateChannel do
 
   @impl true
 
-
+  @doc """
+  Handler function for messages pushed from Robot client B with event name "achieved_goal_B"
+  when the robot visits a goal position successfully.
+  """
   def handle_in("acheived_goal_B", msg, socket) do
     apid=self()
     msg=String.to_atom(msg)
@@ -56,6 +66,10 @@ defmodule Task4cPhoenixServerWeb.RobotBNavigateChannel do
   end
 
 
+  @doc """
+  handler function for messages pushed from Robot Client B to request clearance for its next move to avoid collision with
+  another robot.
+  """
   @impl true
   def handle_in("next_action_B", payload, socket) do
     %{"client" => "robot_B", "x" => x, "y" => y,
@@ -66,6 +80,10 @@ defmodule Task4cPhoenixServerWeb.RobotBNavigateChannel do
   end
 
 
+  @doc """
+  Handler function to handle messages pushed into the channel with event name "start_pos_B"
+  It replies with the starting position for Robot Client B.
+  """
 
   def handle_in("start_pos_B",client,socket) do
     pid=self()
@@ -80,7 +98,12 @@ defmodule Task4cPhoenixServerWeb.RobotBNavigateChannel do
   end
 
 
-
+  @doc """
+  This function takes arguments `robot` and `action` which robot B's location and its next action which can be 
+  "turning", "Halting"(robot has stopped at a location temporarily while waiting for another robot to clear the route)
+  "farming"( when the robot was uprooting a weed stalk or dropping a seed object ), "moving" (when the robot is about
+  to move to the node ahead)
+  """
   def commB(robot,action) do
     bpid= self()
     params=cond do
