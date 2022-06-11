@@ -80,6 +80,8 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
     end
 
   end
+  
+  
 
   def all_pos() do
     range = 1..25
