@@ -29,7 +29,7 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
 
   def start_signal do
     channel = choose_channel(:robot_channel)
-    msg = %{"event_id" => 12 ,"sender" => "B", "value" => nil }
+    msg = %{"event_id" => 12 ,"sender" => "A", "value" => nil }
     {:task_start,reply} = PhoenixClient.Channel.push(channel,"event_msg",msg)
     if reply == "wait" do
       Process.sleep(500)
@@ -48,7 +48,7 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
   end
 
   def connect_server do
-    socket_opts=Application.get_env(:task_4c_client_robotb, :phoenix_server_url )
+    socket_opts=Application.get_env(:task_4c_client_robota, :phoenix_server_url )
     {:ok, socket} = PhoenixClient.Socket.start_link([url: socket_opts])
     wait_until_connected(socket)
     join_channels(socket)
@@ -119,29 +119,29 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
 
 
   def obs_detected(robot) do
-    %Task4CClientRobotB.Position{x: x, y: y, facing: facing} = robot
-    msg = %{"event_id" => 2 ,"sender" => "B",
+    %Task4CClientRobotA.Position{x: x, y: y, facing: facing} = robot
+    msg = %{"event_id" => 2 ,"sender" => "A",
                 "value" => %{"x" => x, "y" => y, "face" => facing }}
     channel = choose_channel(:robot_channel)
     {:obstacle_location,"updated"} = PhoenixClient.Channel.push(channel,"event_msg",msg)
   end
 
   def get_stop_signal(robot) do
-    msg = %{"event_id" => 10 , "sender" => "B" , "value" => nil}
+    msg = %{"event_id" => 10 , "sender" => "A" , "value" => nil}
     channel = choose_channel(:robot_channel)
     {:stop_signal,info_map } = PhoenixClient.Channel.push(channel,"event_msg",msg)
-    %{"event_id" => 6 ,"sender" => "Server", "value" => %{"B" => duration}} = info_map
+    %{"event_id" => 6 ,"sender" => "Server", "value" => %{"A" => duration}} = info_map
     channel = choose_channel(:robot_channel)
 
     if duration > 0 do
       report_next_move(robot,"stopped")
-      msg = %{"event_id" => 7,"sender" => "B", "value" => "nil" }
+      msg = %{"event_id" => 7,"sender" => "A", "value" => "nil" }
       {:ok,"recorded"} = PhoenixClient.Channel.push(channel,"event_msg",msg)
     end
 
     Process.sleep(duration*1000)
     if duration > 0 do
-      msg = %{"event_id" => 8,"sender" => "B", "value" => "nil" }
+      msg = %{"event_id" => 8,"sender" => "A", "value" => "nil" }
       {:ok,"recorded"} = PhoenixClient.Channel.push(channel,"event_msg",msg)
     end
 
@@ -149,15 +149,15 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
 
   def get_start do
     channel=choose_channel(:navigate_channel)
-    {:start_B, start} = PhoenixClient.Channel.push(channel,"start_pos_B","Robot_B")
+    {:start_A, start} = PhoenixClient.Channel.push(channel,"start_pos_A","Robot_A")
     [x,y,face]=start
     [x,String.to_atom(y),String.to_atom(face)]
   end
 
   def get_goal do
     channel=choose_channel(:navigate_channel)
-    {:current_target_B, current_target_B} = PhoenixClient.Channel.push(channel,"fetch_goal_B", "Robo_B")
-    [x,y,string] = current_target_B
+    {:current_target_A, current_target_A} = PhoenixClient.Channel.push(channel,"fetch_goal_A", "Robo_A")
+    [x,y,string] = current_target_A
     if x == nil do
       [x,y,string]
     else
@@ -170,25 +170,25 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
   def confirm_goal(goal_type,goal) do
     cell = give_goal_cell(goal)
     channel=choose_channel(:navigate_channel)
-    {:ok,"recorded"}=PhoenixClient.Channel.push(channel,"acheived_goal_B", "Destination_confirmation_B")
+    {:ok,"recorded"}=PhoenixClient.Channel.push(channel,"acheived_goal_A", "Destination_confirmation_A")
     channel= choose_channel(:robot_channel)
     num = if goal_type == "weeding" do
       4
     else
       3
     end
-    msg =  %{"event_id" => num ,"sender" => "B","value" => cell}
+    msg =  %{"event_id" => num ,"sender" => "A","value" => cell}
     {:ok,"recorded"}=PhoenixClient.Channel.push(channel,"event_msg", msg)
   end
 
   def report_next_move(robot,action) do
     channel=choose_channel(:navigate_channel)
     %Task4CClientRobotB.Position{x: x, y: y, facing: facing} = robot
-    params=%{"client" => "robot_B", "x" => robot.x, "y" => robot.y, "face" => robot.facing, "action" => action}
-    {:move, next_move}=PhoenixClient.Channel.push(channel,"next_action_B",params)
+    params=%{"client" => "robot_A", "x" => robot.x, "y" => robot.y, "face" => robot.facing, "action" => action}
+    {:move, next_move}=PhoenixClient.Channel.push(channel,"next_action_A",params)
 
     if next_move == "terminate" do
-      Task4CClientRobotB.deposit_stalks(robot)
+      Task4CClientRobotA.deposit_stalks(robot)
       pid = self()
       send(:weed_reg,{:give_cells,pid})
       list = receive do
@@ -197,10 +197,10 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
       end
       channel = choose_channel(:robot_channel)
       string = List.to_string(list)
-      msg = %{"event_id" => 5 ,"sender" => "B", "value" => string}
+      msg = %{"event_id" => 5 ,"sender" => "A", "value" => string}
       {:ok,"recorded"} = PhoenixClient.Channel.push(channel,"event_msg",msg)
       channel = choose_channel(:robot_channel)
-      msg = %{"event_id" => 9 ,"sender" => "B", "value" => nil }
+      msg = %{"event_id" => 9 ,"sender" => "A", "value" => nil }
       {:ok,"recorded"} = PhoenixClient.Channel.push(channel,"event_msg",msg)
     end
     next_move
@@ -210,8 +210,8 @@ defmodule Task4CClientRobotA.PhoenixSocketClient do
     Process.sleep(1000)
     channel = choose_channel(:robot_channel)
     %Task4CClientRobotB.Position{x: x, y: y, facing: facing} = robot
-    message=%{"event_id" => 1 ,"sender" => "B
-    ","value" => %{"x" => x, "y" => y, "face" => facing}}
+    message=%{"event_id" => 1 ,"sender" => "A",
+              "value" => %{"x" => x, "y" => y, "face" => facing}}
     {:robot_location,"updated"} = PhoenixClient.Channel.push(channel, "event_msg", message)
     #Process.sleep(500)
     IO.puts("I sent my location : #{x}, #{y}, #{facing}")
